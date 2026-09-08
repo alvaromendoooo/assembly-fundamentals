@@ -1,0 +1,4 @@
+[instruction_set]
+assembler = "nsam"
+instruction_set = "x86-64"
+syntax = "intel"

@@ -1,0 +1,30 @@
+{
+  "course": "assembly-fundamentals",
+  "language": "assembly",
+  "language_id": 45,
+  "entrypoint": "main.asm",
+  "version": 1,
+  "content_hash": "f49e0530d2ce1c91",
+  "lessons": [
+    {
+      "slug": "hello-asm",
+      "tests_hash": "d893924b5093"
+    },
+    {
+      "slug": "registers",
+      "tests_hash": "f2d92d5cf30c"
+    },
+    {
+      "slug": "control-flow",
+      "tests_hash": "10123b5f337b"
+    },
+    {
+      "slug": "memory",
+      "tests_hash": "d0c21e96f83c"
+    },
+    {
+      "slug": "functions",
+      "tests_hash": "6760f0f923d4"
+    }
+  ]
+}

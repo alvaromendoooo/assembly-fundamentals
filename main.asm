@@ -1,36 +1,37 @@
-; Test 01
-
-;section .data
-;    msg db "Hello, Assembly!", 10
-;    len equ $ - msg
-;section .text
-;    global _start
-;_start:
-;    mov rax, 1
-;    mov rdi, 1
-;    mov rsi, msg
-;    mov rdx, len
-;    syscall
-;    mov rax, 60
-;    xor rdi, rdi
-;    syscall
-
-; Test 02
+default rel
 
 section .data
-    digit db 0, 10          ; byte 0 = the character, byte 1 = a newline
+    digit db 0, 10
 
 section .text
-    global _start
-_start:
-    mov byte [digit], '9'
+    global main             ; Renamed from _start to main
 
-    mov rax, 1              ; write
+main:
+    xor rcx, rcx
+
+.loop:
+    cmp rcx, 10
+    jge .done
+
+    test rcx, 1
+    jnz .next
+
+    mov al, cl
+    add al, '0'
+    mov [digit], al
+
+    push rcx
+    mov rax, 1              ; sys_write
     mov rdi, 1              ; stdout
     mov rsi, digit
-    mov rdx, 2              ; the character byte AND the newline byte
+    mov rdx, 2
     syscall
+    pop rcx
 
-    mov rax, 60
-    xor rdi, rdi
-    syscall
+.next:
+    inc rcx
+    jmp .loop
+
+.done:
+    mov rax, 0              ; return 0 from main()
+    ret                     ; return to C runtime caller instead of raw syscall

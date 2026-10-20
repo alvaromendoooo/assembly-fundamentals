@@ -1,37 +1,61 @@
 default rel
 
+section .bss
+    input resb 4             ; Buffer to read input from stdin
+
 section .data
-    digit db 0, 10
+    star db '*'
+    newline db 10
 
 section .text
-    global main             ; Renamed from _start to main
+    global _start
 
-main:
-    xor rcx, rcx
-
-.loop:
-    cmp rcx, 10
-    jge .done
-
-    test rcx, 1
-    jnz .next
-
-    mov al, cl
-    add al, '0'
-    mov [digit], al
-
-    push rcx
-    mov rax, 1              ; sys_write
-    mov rdi, 1              ; stdout
-    mov rsi, digit
-    mov rdx, 2
+_start:
+    ; 1. Read input integer from stdin
+    mov rax, 0               ; sys_read
+    mov rdi, 0               ; stdin
+    mov rsi, input
+    mov rdx, 4
     syscall
-    pop rcx
 
-.next:
-    inc rcx
-    jmp .loop
+    ; 2. Convert ASCII character input to integer count N
+    movzx r12, byte [input]
+    sub r12, '0'             ; r12 = total rows N
+
+    mov r13, 1               ; r13 = current row index (1 to N)
+
+.outer_loop:
+    cmp r13, r12
+    jg .done                 ; If current_row > N, exit
+
+    ; Inner loop: print '*' current_row times
+    mov r14, 0               ; r14 = star counter
+.inner_loop:
+    cmp r14, r13
+    jge .print_newline
+
+    ; Print single '*'
+    mov rax, 1               ; sys_write
+    mov rdi, 1               ; stdout
+    mov rsi, star
+    mov rdx, 1
+    syscall
+
+    inc r14
+    jmp .inner_loop
+
+.print_newline:
+    ; Print newline character at the end of each row
+    mov rax, 1               ; sys_write
+    mov rdi, 1               ; stdout
+    mov rsi, newline
+    mov rdx, 1
+    syscall
+
+    inc r13                  ; Move to next row
+    jmp .outer_loop
 
 .done:
-    mov rax, 0              ; return 0 from main()
-    ret                     ; return to C runtime caller instead of raw syscall
+    mov rax, 60              ; sys_exit
+    xor rdi, rdi             ; exit code 0
+    syscall            ; return to C runtime caller instead of raw syscall

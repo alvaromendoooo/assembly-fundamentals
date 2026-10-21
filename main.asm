@@ -1,72 +1,110 @@
 default rel
 
 section .bss
-    line resb 128            ; Input buffer
-    rev  resb 128            ; Output buffer for reversed string
+    buffer resb 32           ; Buffer for input reading
+    num_str resb 32          ; Buffer for integer-to-string formatting
+
+section .data
+    prefix db "! = ", 0
 
 section .text
     global _start
+    global fact
 
+; ------------------------------------------------------------------------------
+; Function: fact
+; Input:  rdi = N (0 <= N <= 9)
+; Output: rax = N!
+; ABI:    System V AMD64 ABI (preserves rbx, rsp, rbp, r12-r15)
+; ------------------------------------------------------------------------------
+fact:
+    mov rax, 1               ; Base case: 0! = 1 and 1! = 1
+    cmp rdi, 1
+    jle .done
+
+    mov rcx, rdi             ; Loop counter from N down to 2
+.loop:
+    imul rax, rcx            ; rax = rax * rcx
+    dec rcx
+    cmp rcx, 1
+    jg .loop
+
+.done:
+    ret
+
+; ------------------------------------------------------------------------------
+; Starter code entry point
+; ------------------------------------------------------------------------------
 _start:
-    ; 1. Read input line from stdin
+    ; 1. Read single digit character from stdin
     mov rax, 0               ; sys_read
-    mov rdi, 0               ; file descriptor: stdin
-    mov rsi, line            ; buffer pointer
-    mov rdx, 128             ; max bytes to read
-    syscall                  ; rax now contains the number of bytes read
-
-    cmp rax, 0
-    jle .done                ; Exit if read failed or 0 bytes read
-
-    ; 2. Determine string length excluding trailing newline
-    mov rcx, rax             ; rcx = total bytes read
-    dec rcx                  ; Adjust index to point to last byte read
-
-    ; If last character is '\n' (ASCII 10), drop it from length calculation
-    cmp byte [line + rcx], 10
-    jne .prepare_reverse
-    dec rcx                  ; Pointer now at the last actual character
-
-.prepare_reverse:
-    ; At this point:
-    ; rcx = index of last character in `line`
-    ; rcx + 1 = total character count to reverse
-    cmp rcx, 0
-    jl .print_newline_only   ; If line was empty (only '\n'), just print newline
-
-    mov rbx, rcx             ; rbx = length - 1 (used for character loop)
-    xor rsi, rsi             ; rsi = index for target buffer `rev`
-
-.reverse_loop:
-    mov al, [line + rbx]     ; Read character from end of `line`
-    mov [rev + rsi], al      ; Write character to start of `rev`
-    inc rsi                  ; Move forward in `rev`
-    dec rbx                  ; Move backward in `line`
-    cmp rbx, 0
-    jge .reverse_loop
-
-    ; Append newline to reversed string
-    mov byte [rev + rsi], 10
-    inc rsi                  ; rsi now holds the total output length
-
-    ; 3. Print reversed string
-    mov rax, 1               ; sys_write
-    mov rdi, 1               ; file descriptor: stdout
-    mov rsi, rev             ; buffer pointer
-    mov rdx, rsi             ; output length
-    mov rsi, rev             ; reset buffer address for write
+    mov rdi, 0               ; stdin
+    mov rsi, buffer
+    mov rdx, 32
     syscall
-    jmp .done
 
-.print_newline_only:
-    mov byte [rev], 10
+    ; 2. Convert ASCII character digit to integer N
+    movzx rdi, byte [buffer]
+    sub rdi, '0'             ; Pass N in rdi to fact
+
+    ; Save original N in callee-saved register rbx per System V ABI
+    mov rbx, rdi             
+
+    ; 3. Call fact(N) -> returns result in rax
+    call fact
+    push rax                 ; Preserve N! result on stack across printing
+
+    ; 4. Print N
+    mov rdi, rbx
+    call print_uint
+
+    ; 5. Print "! = " prefix
     mov rax, 1               ; sys_write
     mov rdi, 1               ; stdout
-    mov rsi, rev
+    mov rsi, prefix
+    mov rdx, 4               ; length of "! = "
+    syscall
+
+    ; 6. Print N!
+    pop rdi                  ; Pass N! as argument to print_uint
+    call print_uint
+
+    ; Print newline
+    mov byte [buffer], 10
+    mov rax, 1               ; sys_write
+    mov rdi, 1               ; stdout
+    mov rsi, buffer
     mov rdx, 1
     syscall
 
-.done:
+    ; Exit
     mov rax, 60              ; sys_exit
-    xor rdi, rdi             ; exit code 0
-    syscall    ; return to C runtime caller instead of raw syscall
+    xor rdi, rdi             ; status 0
+    syscall
+
+; Helper: Print an unsigned integer passed in rdi
+print_uint:
+    mov rax, rdi
+    mov rcx, num_str + 31    ; Point to end of buffer
+    mov byte [rcx], 0        ; Null terminator
+    mov rbx, 10
+
+.convert_loop:
+    xor rdx, rdx
+    div rbx                  ; rax = quotient, rdx = remainder
+    add dl, '0'              ; Convert digit to ASCII
+    dec rcx
+    mov [rcx], dl
+    test rax, rax
+    jnz .convert_loop
+
+    ; Calculate length
+    mov rdx, num_str + 31
+    sub rdx, rcx             ; rdx = string length
+
+    ; sys_write
+    mov rax, 1
+    mov rdi, 1
+    mov rsi, rcx
+    syscall
+    ret
